@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Ronda Vigia</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root{
   --green:#1D9E75;--green-l:#E1F5EE;--green-d:#085041;
@@ -337,80 +337,48 @@ function switchTab(name) {
 }
 
 // SCANNER
+var codeReader = null;
+
 function toggleScan() { scanning ? stopScan() : startScan(); }
 
 function startScan() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    toast('❌ Câmera não suportada neste navegador'); return;
-  }
-  navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: { exact: 'environment' },
-      width: { ideal: 1280 },
-      height: { ideal: 720 }
-    },
-    audio: false
-  })
-  .catch(function() {
-    return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-  })
-  .catch(function() {
-    return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-  })
-  .then(function(s) {
-    stream = s;
-    var v = document.getElementById('video');
-    v.srcObject = stream;
-    v.setAttribute('playsinline', '');
-    v.setAttribute('autoplay', '');
-    v.setAttribute('muted', '');
-    v.play();
+  if (!window.ZXing) { toast('❌ Biblioteca não carregada, aguarde'); return; }
+  try {
+    codeReader = new ZXing.BrowserQRCodeReader();
+    codeReader.decodeFromConstraints(
+      { video: { facingMode: 'environment' } },
+      'video',
+      function(result, err) {
+        if (result) {
+          var now = Date.now();
+          if (result.text !== lastQR || now - lastQRTime > 5000) {
+            lastQR = result.text;
+            lastQRTime = now;
+            onQR(result.text);
+          }
+        }
+      }
+    );
     scanning = true;
     document.getElementById('btn-cam').innerHTML = '⏹ Parar Câmera';
     document.getElementById('btn-cam').className = 'btn-scan btn-stop';
     document.getElementById('scan-txt').textContent = 'Aguardando QR Code...';
     document.getElementById('sdot').style.display = 'inline-block';
-    scanLoop();
-  })
-  .catch(function() { toast('❌ Sem acesso à câmera'); });
+  } catch(e) {
+    toast('❌ Erro ao iniciar câmera: ' + e.message);
+  }
 }
 
 function stopScan() {
   scanning = false;
-  if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
-  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
-  var v = document.getElementById('video');
-  if (v) v.srcObject = null;
+  if (codeReader) { try { codeReader.reset(); } catch(e){} codeReader = null; }
   document.getElementById('btn-cam').innerHTML = '▶ Iniciar Câmera';
   document.getElementById('btn-cam').className = 'btn-scan btn-go';
   document.getElementById('scan-txt').textContent = 'Câmera inativa';
   document.getElementById('sdot').style.display = 'none';
 }
 
-function scanLoop() {
-  if (!scanning) return;
-  var video = document.getElementById('video');
-  var canvas = document.getElementById('canvas');
-  if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    var maxDim = 600;
-    var scale = Math.min(maxDim / video.videoWidth, maxDim / video.videoHeight, 1);
-    canvas.width  = Math.floor(video.videoWidth  * scale);
-    canvas.height = Math.floor(video.videoHeight * scale);
-    var ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
-    if (code) {
-      var now = Date.now();
-      if (code.data !== lastQR || now - lastQRTime > 5000) {
-        lastQR = code.data;
-        lastQRTime = now;
-        onQR(code.data);
-      }
-    }
-  }
-  animFrame = requestAnimationFrame(scanLoop);
-}
+function scanLoop() {}
 
 function onQR(data) {
   navigator.geolocation.getCurrentPosition(
