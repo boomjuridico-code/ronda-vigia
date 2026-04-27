@@ -143,17 +143,7 @@ header{background:var(--card);border-bottom:1px solid var(--border);padding:.75r
       <label class="fl" for="login-name">Seu nome</label>
       <input class="finput" id="login-name" type="text" placeholder="Nome completo" autocomplete="name">
     </div>
-    <div>
-      <label class="fl" for="login-tipo">Tipo de registro</label>
-      <select class="finput" id="login-tipo">
-        <option value="Entrada">Entrada</option>
-        <option value="Registro de turno">Registro de turno</option>
-        <option value="Intervalo início">Intervalo início</option>
-        <option value="Intervalo retorno">Intervalo retorno</option>
-        <option value="Fim de turno">Fim de turno</option>
-      </select>
-    </div>
-    <button class="btn-login" id="btn-login" onclick="doLogin()">Iniciar</button>
+    <button class="btn-login" id="btn-login" onclick="doLogin()">Entrar</button>
   </div>
 </div>
 
@@ -198,9 +188,20 @@ header{background:var(--card);border-bottom:1px solid var(--border);padding:.75r
         <span id="scan-txt">Câmera inativa</span>
       </div>
     </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <label class="fl" for="scan-tipo">Tipo de registro</label>
+      <select class="finput" id="scan-tipo">
+        <option value="Entrada">Entrada</option>
+        <option value="Registro de turno">Registro de turno</option>
+        <option value="Intervalo início">Intervalo início</option>
+        <option value="Intervalo retorno">Intervalo retorno</option>
+        <option value="Fim de turno">Fim de turno</option>
+      </select>
+    </div>
     <button class="btn-scan btn-go" id="btn-cam" onclick="toggleScan()">▶ Iniciar Câmera</button>
     <div class="result-card" id="result-card">
       <h3>✅ Ponto registrado!</h3>
+      <div class="rrow"><span class="rlabel">Tipo:</span><span id="r-tipo"></span></div>
       <div class="rrow"><span class="rlabel">Local:</span><strong id="r-loc"></strong></div>
       <div class="rrow"><span class="rlabel">Data/hora:</span><span id="r-dt"></span></div>
       <div class="rrow"><span class="rlabel">GPS:</span><span id="r-gps"></span></div>
@@ -303,9 +304,8 @@ function carregarVigia() {
 
 function doLogin() {
   var n = document.getElementById('login-name').value.trim();
-  var t = document.getElementById('login-tipo').value;
   if (!n) { toast('⚠️ Informe seu nome'); return; }
-  vigia = { name: n, tipo: t, start: new Date().toISOString() };
+  vigia = { name: n, tipo: '', start: new Date().toISOString() };
   localStorage.setItem('ronda_vigia', JSON.stringify(vigia));
   mostrarApp();
 }
@@ -314,7 +314,7 @@ function mostrarApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('hdr-name').textContent = vigia.name;
-  document.getElementById('hdr-shift').textContent = vigia.tipo + ' · ' + new Date(vigia.start).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  document.getElementById('hdr-shift').textContent = 'Turno desde ' + new Date(vigia.start).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
 }
 
 function logout() {
@@ -394,7 +394,7 @@ function buildEntry(location, lat, lng, source) {
   return {
     id: Date.now(),
     vigia: vigia.name,
-    tipo: vigia.tipo,
+    tipo: (document.getElementById('scan-tipo') ? document.getElementById('scan-tipo').value : vigia.tipo),
     shiftStart: vigia.start,
     location: location,
     source: source,
@@ -417,6 +417,8 @@ function saveEntry(location, lat, lng, source) {
 }
 
 function showResultCard(e) {
+  var tipoEl = document.getElementById('r-tipo');
+  if (tipoEl) tipoEl.textContent = e.tipo || '';
   document.getElementById('r-loc').textContent = e.location;
   document.getElementById('r-dt').textContent = e.date + ' ' + e.time;
   document.getElementById('r-gps').textContent = e.lat ? e.lat + ', ' + e.lng : 'Sem GPS';
