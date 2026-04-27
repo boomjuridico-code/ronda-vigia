@@ -273,7 +273,7 @@ header{background:var(--card);border-bottom:1px solid var(--border);padding:.75r
 /* ═══════════════════════════════════════════════════
    CONFIGURAÇÕES DO ADMINISTRADOR
    ═══════════════════════════════════════════════════ */
-var SHEETS_URL = 'COLE_AQUI_A_URL_DO_APPS_SCRIPT';
+var SHEETS_URL = https://script.google.com/macros/s/AKfycbw1QUZ-lTMazEmGVq1uVYxSYSlDn0Lw6wViKcLwenAKbl20XvRyFLnnBdqsBpgnDk4m/exec;
 var AUTO_SYNC  = true;
 /* ═══════════════════════════════════════════════════ */
 
@@ -343,20 +343,36 @@ function startScan() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     toast('❌ Câmera não suportada neste navegador'); return;
   }
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-    .then(function(s) {
-      stream = s;
-      var v = document.getElementById('video');
-      v.srcObject = stream;
-      v.play();
-      scanning = true;
-      document.getElementById('btn-cam').innerHTML = '⏹ Parar Câmera';
-      document.getElementById('btn-cam').className = 'btn-scan btn-stop';
-      document.getElementById('scan-txt').textContent = 'Aguardando QR Code...';
-      document.getElementById('sdot').style.display = 'inline-block';
-      scanLoop();
-    })
-    .catch(function() { toast('❌ Sem acesso à câmera'); });
+  navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: { exact: 'environment' },
+      width: { ideal: 1280 },
+      height: { ideal: 720 }
+    },
+    audio: false
+  })
+  .catch(function() {
+    return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+  })
+  .catch(function() {
+    return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+  })
+  .then(function(s) {
+    stream = s;
+    var v = document.getElementById('video');
+    v.srcObject = stream;
+    v.setAttribute('playsinline', '');
+    v.setAttribute('autoplay', '');
+    v.setAttribute('muted', '');
+    v.play();
+    scanning = true;
+    document.getElementById('btn-cam').innerHTML = '⏹ Parar Câmera';
+    document.getElementById('btn-cam').className = 'btn-scan btn-stop';
+    document.getElementById('scan-txt').textContent = 'Aguardando QR Code...';
+    document.getElementById('sdot').style.display = 'inline-block';
+    scanLoop();
+  })
+  .catch(function() { toast('❌ Sem acesso à câmera'); });
 }
 
 function stopScan() {
@@ -376,12 +392,14 @@ function scanLoop() {
   var video = document.getElementById('video');
   var canvas = document.getElementById('canvas');
   if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    var maxDim = 600;
+    var scale = Math.min(maxDim / video.videoWidth, maxDim / video.videoHeight, 1);
+    canvas.width  = Math.floor(video.videoWidth  * scale);
+    canvas.height = Math.floor(video.videoHeight * scale);
     var ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+    var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
     if (code) {
       var now = Date.now();
       if (code.data !== lastQR || now - lastQRTime > 5000) {
