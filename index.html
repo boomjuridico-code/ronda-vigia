@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Ronda Vigia</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<style>
+:root{
+  --green:#1D9E75;--green-l:#E1F5EE;--green-d:#085041;
+  --amber:#BA7517;--amber-l:#FAEEDA;
+  --red:#E24B4A;--red-l:#FCEBEB;
+  --gray-l:#F1EFE8;
+  --text:#2C2C2A;--muted:#888780;
+  --border:rgba(0,0,0,0.1);
+  --card:#fff;--bg:#F4F3EE;--r:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --green:#5DCAA5;--green-l:#04342C;--green-d:#9FE1CB;
+  --amber:#EF9F27;--amber-l:#412402;
+  --red:#F09595;--red-l:#501313;
+  --gray-l:#444441;
+  --text:#F1EFE8;--muted:#888780;
+  --border:rgba(255,255,255,0.08);
+  --card:#2C2C2A;--bg:#1a1a18;
+}}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+#login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1.5rem;gap:1.25rem;}
+.login-logo{width:64px;height:64px;border-radius:16px;background:var(--green);display:flex;align-items:center;justify-content:center;}
+.login-logo svg{width:36px;height:36px;fill:#fff;}
+.login-title{font-size:22px;font-weight:700;color:var(--text);text-align:center;}
+.login-sub{font-size:14px;color:var(--muted);text-align:center;margin-top:-8px;}
+.login-form{width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;}
+.fl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px;}
+.finput{padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:15px;width:100%;display:block;}
+.finput:focus{outline:2px solid var(--green);border-color:transparent;}
+.btn-login{padding:14px;border-radius:10px;border:none;background:var(--green);color:#fff;font-size:15px;font-weight:700;cursor:pointer;width:100%;}
+
+#app{display:none;flex-direction:column;min-height:100vh;}
+header{background:var(--card);border-bottom:1px solid var(--border);padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.hdr-left{display:flex;align-items:center;gap:8px;}
+.hdr-icon{width:30px;height:30px;border-radius:7px;background:var(--green);display:flex;align-items:center;justify-content:center;}
+.hdr-icon svg{width:16px;height:16px;fill:#fff;}
+.hdr-name{font-size:14px;font-weight:600;line-height:1.2;}
+.hdr-shift{font-size:11px;color:var(--muted);}
+.clock-badge{font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;background:var(--green-l);color:var(--green-d);display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.cdot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.tabs{display:flex;background:var(--card);border-bottom:1px solid var(--border);}
+.tab{flex:1;padding:11px 4px;font-size:11px;font-weight:500;text-align:center;border:none;background:none;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;}
+.tab.active{color:var(--green);border-bottom-color:var(--green);}
+
+.view{display:none;flex:1;padding:1rem;flex-direction:column;gap:1rem;}
+.view.active{display:flex;}
+
+.scanner-box{background:var(--card);border-radius:var(--r);overflow:hidden;border:1px solid var(--border);}
+#video-container{position:relative;width:100%;background:#000;aspect-ratio:1;overflow:hidden;}
+#video{width:100%;height:100%;object-fit:cover;display:block;}
+#canvas{display:none;}
+.scan-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+.scan-frame{width:60%;aspect-ratio:1;border:2px solid rgba(255,255,255,.7);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.35);position:relative;}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);animation:scanln 2s linear infinite;}
+@keyframes scanln{0%{top:0%}100%{top:100%}}
+.sfc{position:absolute;width:16px;height:16px;border-color:var(--green);border-style:solid;}
+.sfc.tl{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:4px 0 0 0;}
+.sfc.tr{top:-2px;right:-2px;border-width:3px 3px 0 0;border-radius:0 4px 0 0;}
+.sfc.bl{bottom:-2px;left:-2px;border-width:0 0 3px 3px;border-radius:0 0 0 4px;}
+.sfc.br{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 4px 0;}
+.scan-status{padding:13px 16px;font-size:13px;color:var(--muted);text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;}
+.sdot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.5s ease-in-out infinite;}
+.btn-scan{width:100%;padding:14px;border-radius:var(--r);border:none;cursor:pointer;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-go{background:var(--green);color:#fff;}
+.btn-stop{background:var(--red-l);color:var(--red);}
+
+.result-card{background:var(--green-l);border-radius:var(--r);padding:14px;border:1px solid rgba(29,158,117,.2);display:none;}
+.result-card.show{display:block;animation:sup .25s ease;}
+@keyframes sup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.result-card h3{font-size:13px;color:var(--green-d);font-weight:600;margin-bottom:8px;}
+.rrow{font-size:13px;color:var(--text);margin:4px 0;display:flex;gap:6px;align-items:baseline;}
+.rlabel{color:var(--muted);min-width:72px;font-size:12px;}
+
+.section-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.btn-reg{padding:13px;border-radius:var(--r);border:none;cursor:pointer;background:var(--green);color:#fff;font-size:15px;font-weight:600;width:100%;}
+
+.report-header{background:var(--card);border-radius:var(--r);padding:1rem;border:1px solid var(--border);}
+.rpt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
+.rpt-stat{background:var(--gray-l);border-radius:8px;padding:10px 12px;}
+.rpt-stat-val{font-size:22px;font-weight:700;color:var(--text);}
+.rpt-stat-lbl{font-size:11px;color:var(--muted);margin-top:2px;}
+.rpt-bar-wrap{padding:12px 14px;}
+.rpt-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.rpt-bar-label{font-size:12px;color:var(--text);min-width:120px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rpt-bar{flex:1;height:8px;background:var(--gray-l);border-radius:4px;overflow:hidden;}
+.rpt-bar-fill{height:100%;background:var(--green);border-radius:4px;}
+.rpt-bar-count{font-size:12px;color:var(--muted);min-width:20px;text-align:right;}
+.timeline{display:flex;flex-direction:column;}
+.tl-item{display:flex;gap:12px;padding:8px 0;}
+.tl-lwrap{display:flex;flex-direction:column;align-items:center;width:20px;flex-shrink:0;}
+.tl-dot{width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:3px;}
+.tl-vline{flex:1;width:2px;background:var(--border);min-height:16px;}
+.tl-content{flex:1;padding-bottom:4px;}
+.tl-loc{font-size:13px;font-weight:600;color:var(--text);}
+.tl-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.tl-time{font-size:12px;font-weight:600;color:var(--green);white-space:nowrap;}
+
+.log-header{display:flex;align-items:center;justify-content:space-between;}
+.log-count{font-size:13px;color:var(--muted);}
+.btn-xs{padding:6px 11px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;}
+.btn-xs.danger{color:var(--red);}
+.log-list{display:flex;flex-direction:column;gap:8px;}
+.log-item{background:var(--card);border-radius:var(--r);padding:11px 13px;border:1px solid var(--border);display:flex;gap:10px;align-items:flex-start;animation:sup .2s ease;}
+.log-num{width:26px;height:26px;border-radius:50%;background:var(--gray-l);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--muted);flex-shrink:0;}
+.log-info{flex:1;min-width:0;}
+.log-loc{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.log-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.log-time{font-size:12px;font-weight:600;color:var(--green);white-space:nowrap;}
+.empty-state{text-align:center;padding:2rem;color:var(--muted);font-size:14px;}
+.empty-icon{font-size:36px;margin-bottom:8px;}
+
+.info-box{border-radius:8px;padding:10px 12px;font-size:12px;border:1px solid;}
+.info-amber{background:var(--amber-l);color:var(--amber);border-color:rgba(186,117,23,.2);}
+.btn-row{display:flex;gap:8px;}
+.btn-row .btn-xs{flex:1;text-align:center;}
+
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap;z-index:9999;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-logo">
+    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12V11c0 4.52-3.08 8.74-7 9.93-3.92-1.19-7-5.41-7-9.93V6.3l7-3.12z"/></svg>
+  </div>
+  <div class="login-title">Ronda Vigia</div>
+  <div class="login-sub">Controle de Turno</div>
+  <div class="login-form">
+    <div>
+      <label class="fl" for="login-name">Seu nome</label>
+      <input class="finput" id="login-name" type="text" placeholder="Nome completo" autocomplete="name">
+    </div>
+    <div>
+      <label class="fl" for="login-tipo">Tipo de registro</label>
+      <select class="finput" id="login-tipo">
+        <option value="Entrada">Entrada</option>
+        <option value="Registro de turno">Registro de turno</option>
+        <option value="Intervalo início">Intervalo início</option>
+        <option value="Intervalo retorno">Intervalo retorno</option>
+        <option value="Fim de turno">Fim de turno</option>
+      </select>
+    </div>
+    <button class="btn-login" id="btn-login" onclick="doLogin()">Iniciar</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="hdr-left">
+      <div class="hdr-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+      </div>
+      <div style="margin-left:8px;">
+        <div class="hdr-name" id="hdr-name">—</div>
+        <div class="hdr-shift" id="hdr-shift">—</div>
+      </div>
+    </div>
+    <div class="clock-badge"><div class="cdot"></div><span id="clock">00:00:00</span></div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('scanner')">📷 Escanear</button>
+    <button class="tab" onclick="switchTab('manual')">✏️ Manual</button>
+    <button class="tab" onclick="switchTab('relatorio')">📊 Relatório</button>
+    <button class="tab" onclick="switchTab('logs')">📋 Registros</button>
+  </div>
+
+  <!-- SCANNER -->
+  <div class="view active" id="view-scanner">
+    <div class="scanner-box">
+      <div id="video-container">
+        <video id="video" playsinline autoplay muted></video>
+        <canvas id="canvas"></canvas>
+        <div class="scan-overlay">
+          <div class="scan-frame">
+            <div class="scan-line"></div>
+            <div class="sfc tl"></div><div class="sfc tr"></div>
+            <div class="sfc bl"></div><div class="sfc br"></div>
+          </div>
+        </div>
+      </div>
+      <div class="scan-status">
+        <div class="sdot" id="sdot" style="display:none"></div>
+        <span id="scan-txt">Câmera inativa</span>
+      </div>
+    </div>
+    <button class="btn-scan btn-go" id="btn-cam" onclick="toggleScan()">▶ Iniciar Câmera</button>
+    <div class="result-card" id="result-card">
+      <h3>✅ Ponto registrado!</h3>
+      <div class="rrow"><span class="rlabel">Local:</span><strong id="r-loc"></strong></div>
+      <div class="rrow"><span class="rlabel">Data/hora:</span><span id="r-dt"></span></div>
+      <div class="rrow"><span class="rlabel">GPS:</span><span id="r-gps"></span></div>
+      <div class="rrow" id="r-sync-row" style="display:none"><span class="rlabel">Planilha:</span><span id="r-sync-txt"></span></div>
+    </div>
+    <div class="info-box info-amber">⚠️ Aponte para o QR Code do ponto. O registro é automático.</div>
+  </div>
+
+  <!-- MANUAL -->
+  <div class="view" id="view-manual">
+    <p class="section-title">Registrar ponto manualmente</p>
+    <div class="form-group">
+      <label class="fl" for="m-loc">Nome do ponto / local</label>
+      <input class="finput" id="m-loc" type="text" placeholder="Ex: Portaria Principal, Bloco A...">
+    </div>
+    <div class="form-group">
+      <label class="fl" for="m-obs">Observação (opcional)</label>
+      <input class="finput" id="m-obs" type="text" placeholder="Tudo certo / Ocorrência...">
+    </div>
+    <button class="btn-reg" onclick="manualRegister()">✅ Registrar Agora</button>
+    <div class="info-box info-amber" style="margin-top:4px;">⚠️ Use quando não for possível escanear o QR Code.</div>
+  </div>
+
+  <!-- RELATÓRIO -->
+  <div class="view" id="view-relatorio">
+    <div class="report-header">
+      <div style="font-size:14px;font-weight:700;" id="rpt-title">Relatório do Turno</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px;" id="rpt-sub">—</div>
+      <div class="rpt-grid">
+        <div class="rpt-stat"><div class="rpt-stat-val" id="rpt-total">0</div><div class="rpt-stat-lbl">Registros</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-val" id="rpt-tempo">—</div><div class="rpt-stat-lbl">Tempo em ronda</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-val" id="rpt-qr">0</div><div class="rpt-stat-lbl">Via QR Code</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-val" id="rpt-man">0</div><div class="rpt-stat-lbl">Manuais</div></div>
+      </div>
+    </div>
+    <div class="section-title">Frequência por ponto</div>
+    <div style="background:var(--card);border-radius:var(--r);border:1px solid var(--border);" id="rpt-bars">
+      <div class="empty-state"><div class="empty-icon">📍</div>Nenhum ponto ainda.</div>
+    </div>
+    <div class="section-title">Linha do tempo</div>
+    <div style="background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:12px 14px;">
+      <div class="timeline" id="rpt-timeline"><div class="empty-state" style="padding:1rem">Sem registros.</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-xs" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn-xs" onclick="syncPending(true)" style="color:var(--green);">☁ Enviar ao Sheets</button>
+    </div>
+    <button class="btn-xs danger" style="width:100%;padding:11px;margin-top:4px;" onclick="encerrarTurno()">⏹ Encerrar turno</button>
+    <button class="btn-xs" style="width:100%;padding:10px;margin-top:4px;color:var(--muted);" onclick="logout()">Sair / Trocar vigia</button>
+  </div>
+
+  <!-- LOGS -->
+  <div class="view" id="view-logs">
+    <div class="log-header">
+      <span class="log-count" id="log-count">0 registros</span>
+      <div class="btn-row">
+        <button class="btn-xs danger" onclick="clearLogs()">Limpar</button>
+        <button class="btn-xs" onclick="exportCSV()">⬇ CSV</button>
+      </div>
+    </div>
+    <div class="log-list" id="log-list">
+      <div class="empty-state"><div class="empty-icon">📋</div>Nenhum registro ainda.</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   CONFIGURAÇÕES DO ADMINISTRADOR
+   ═══════════════════════════════════════════════════ */
+var SHEETS_URL = 'COLE_AQUI_A_URL_DO_APPS_SCRIPT';
+var AUTO_SYNC  = true;
+/* ═══════════════════════════════════════════════════ */
+
+var scanning = false;
+var stream   = null;
+var animFrame = null;
+var lastQR   = '';
+var lastQRTime = 0;
+var logs     = [];
+var vigia    = { name: '', tipo: '', start: null };
+
+function temSheets() {
+  return SHEETS_URL && SHEETS_URL !== 'COLE_AQUI_A_URL_DO_APPS_SCRIPT';
+}
+
+function carregarLogs() {
+  try { logs = JSON.parse(localStorage.getItem('ronda_logs') || '[]'); } catch(e) { logs = []; }
+}
+
+function salvarLogs() {
+  localStorage.setItem('ronda_logs', JSON.stringify(logs));
+}
+
+function carregarVigia() {
+  try { return JSON.parse(localStorage.getItem('ronda_vigia') || 'null'); } catch(e) { return null; }
+}
+
+function doLogin() {
+  var n = document.getElementById('login-name').value.trim();
+  var t = document.getElementById('login-tipo').value;
+  if (!n) { toast('⚠️ Informe seu nome'); return; }
+  vigia = { name: n, tipo: t, start: new Date().toISOString() };
+  localStorage.setItem('ronda_vigia', JSON.stringify(vigia));
+  mostrarApp();
+}
+
+function mostrarApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('hdr-name').textContent = vigia.name;
+  document.getElementById('hdr-shift').textContent = vigia.tipo + ' · ' + new Date(vigia.start).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+}
+
+function logout() {
+  stopScan();
+  localStorage.removeItem('ronda_vigia');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// TABS
+var TABS = ['scanner','manual','relatorio','logs'];
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(function(t, i) {
+    t.classList.toggle('active', TABS[i] === name);
+  });
+  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+  document.getElementById('view-' + name).classList.add('active');
+  if (name === 'logs') renderLogs();
+  if (name === 'relatorio') renderReport();
+}
+
+// SCANNER
+function toggleScan() { scanning ? stopScan() : startScan(); }
+
+function startScan() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    toast('❌ Câmera não suportada neste navegador'); return;
+  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+    .then(function(s) {
+      stream = s;
+      var v = document.getElementById('video');
+      v.srcObject = stream;
+      v.play();
+      scanning = true;
+      document.getElementById('btn-cam').innerHTML = '⏹ Parar Câmera';
+      document.getElementById('btn-cam').className = 'btn-scan btn-stop';
+      document.getElementById('scan-txt').textContent = 'Aguardando QR Code...';
+      document.getElementById('sdot').style.display = 'inline-block';
+      scanLoop();
+    })
+    .catch(function() { toast('❌ Sem acesso à câmera'); });
+}
+
+function stopScan() {
+  scanning = false;
+  if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
+  if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+  var v = document.getElementById('video');
+  if (v) v.srcObject = null;
+  document.getElementById('btn-cam').innerHTML = '▶ Iniciar Câmera';
+  document.getElementById('btn-cam').className = 'btn-scan btn-go';
+  document.getElementById('scan-txt').textContent = 'Câmera inativa';
+  document.getElementById('sdot').style.display = 'none';
+}
+
+function scanLoop() {
+  if (!scanning) return;
+  var video = document.getElementById('video');
+  var canvas = document.getElementById('canvas');
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+    if (code) {
+      var now = Date.now();
+      if (code.data !== lastQR || now - lastQRTime > 5000) {
+        lastQR = code.data;
+        lastQRTime = now;
+        onQR(code.data);
+      }
+    }
+  }
+  animFrame = requestAnimationFrame(scanLoop);
+}
+
+function onQR(data) {
+  navigator.geolocation.getCurrentPosition(
+    function(pos) { saveEntry(data, pos.coords.latitude, pos.coords.longitude, 'qr'); },
+    function()    { saveEntry(data, null, null, 'qr_sem_gps'); },
+    { timeout: 4000 }
+  );
+}
+
+// REGISTRO
+function buildEntry(location, lat, lng, source) {
+  var now = new Date();
+  return {
+    id: Date.now(),
+    vigia: vigia.name,
+    tipo: vigia.tipo,
+    shiftStart: vigia.start,
+    location: location,
+    source: source,
+    date: now.toLocaleDateString('pt-BR'),
+    time: now.toLocaleTimeString('pt-BR'),
+    timestamp: now.toISOString(),
+    lat: lat ? lat.toFixed(6) : null,
+    lng: lng ? lng.toFixed(6) : null,
+    synced: false
+  };
+}
+
+function saveEntry(location, lat, lng, source) {
+  var entry = buildEntry(location, lat, lng, source);
+  logs.unshift(entry);
+  salvarLogs();
+  showResultCard(entry);
+  toast('✅ ' + entry.location);
+  if (AUTO_SYNC && temSheets()) syncEntry(entry);
+}
+
+function showResultCard(e) {
+  document.getElementById('r-loc').textContent = e.location;
+  document.getElementById('r-dt').textContent = e.date + ' ' + e.time;
+  document.getElementById('r-gps').textContent = e.lat ? e.lat + ', ' + e.lng : 'Sem GPS';
+  var row = document.getElementById('r-sync-row');
+  if (temSheets()) { row.style.display = 'flex'; document.getElementById('r-sync-txt').textContent = 'Enviando...'; }
+  else row.style.display = 'none';
+  var card = document.getElementById('result-card');
+  card.classList.remove('show');
+  void card.offsetWidth;
+  card.classList.add('show');
+}
+
+// MANUAL
+function manualRegister() {
+  var loc = document.getElementById('m-loc').value.trim();
+  if (!loc) { toast('⚠️ Informe o nome do ponto'); return; }
+  var obs = document.getElementById('m-obs').value.trim();
+  var label = loc + (obs ? ' — ' + obs : '');
+  function done() { document.getElementById('m-loc').value = ''; document.getElementById('m-obs').value = ''; }
+  navigator.geolocation.getCurrentPosition(
+    function(pos) { saveEntry(label, pos.coords.latitude, pos.coords.longitude, 'manual'); done(); },
+    function()    { saveEntry(label, null, null, 'manual_sem_gps'); done(); },
+    { timeout: 4000 }
+  );
+}
+
+// RELATÓRIO
+function renderReport() {
+  var tl = logs.filter(function(l) { return l.vigia === vigia.name && l.shiftStart === vigia.start; });
+  document.getElementById('rpt-title').textContent = 'Relatório — ' + vigia.name;
+  document.getElementById('rpt-sub').textContent = vigia.tipo + ' · Início: ' + new Date(vigia.start).toLocaleString('pt-BR');
+  document.getElementById('rpt-total').textContent = tl.length;
+  document.getElementById('rpt-qr').textContent = tl.filter(function(l) { return l.source && l.source.indexOf('qr') === 0; }).length;
+  document.getElementById('rpt-man').textContent = tl.filter(function(l) { return l.source && l.source.indexOf('manual') === 0; }).length;
+
+  if (tl.length >= 2) {
+    var mins = Math.round((new Date(tl[0].timestamp) - new Date(tl[tl.length-1].timestamp)) / 60000);
+    document.getElementById('rpt-tempo').textContent = mins >= 60 ? Math.floor(mins/60) + 'h' + String(mins%60).padStart(2,'0') + 'm' : mins + 'm';
+  } else { document.getElementById('rpt-tempo').textContent = '—'; }
+
+  var freq = {};
+  tl.forEach(function(l) { freq[l.location] = (freq[l.location] || 0) + 1; });
+  var sorted = Object.keys(freq).map(function(k) { return [k, freq[k]]; }).sort(function(a,b) { return b[1]-a[1]; });
+  var maxV = sorted[0] ? sorted[0][1] : 1;
+  var barsEl = document.getElementById('rpt-bars');
+  if (!sorted.length) {
+    barsEl.innerHTML = '<div class="empty-state"><div class="empty-icon">📍</div>Nenhum ponto ainda.</div>';
+  } else {
+    barsEl.innerHTML = '<div class="rpt-bar-wrap">' + sorted.map(function(x) {
+      return '<div class="rpt-bar-row"><div class="rpt-bar-label" title="'+x[0]+'">'+x[0]+'</div>' +
+             '<div class="rpt-bar"><div class="rpt-bar-fill" style="width:'+Math.round(x[1]/maxV*100)+'%"></div></div>' +
+             '<div class="rpt-bar-count">'+x[1]+'</div></div>';
+    }).join('') + '</div>';
+  }
+
+  var tlEl = document.getElementById('rpt-timeline');
+  var slice = tl.slice(0, 40);
+  if (!slice.length) {
+    tlEl.innerHTML = '<div class="empty-state" style="padding:1rem">Sem registros.</div>';
+  } else {
+    tlEl.innerHTML = slice.map(function(e, i) {
+      return '<div class="tl-item">' +
+        '<div class="tl-lwrap"><div class="tl-dot"></div>' + (i < slice.length-1 ? '<div class="tl-vline"></div>' : '') + '</div>' +
+        '<div class="tl-content"><div class="tl-loc">' + e.location + '</div>' +
+        '<div class="tl-meta">' + e.date + ' · ' + (e.source && e.source.indexOf('manual') === 0 ? '✏️ Manual' : '📷 QR') + (e.lat ? ' · 📍 GPS' : '') + '</div></div>' +
+        '<div class="tl-time">' + e.time + '</div></div>';
+    }).join('');
+  }
+}
+
+function encerrarTurno() {
+  if (!confirm('Encerrar turno e enviar registros pendentes?')) return;
+  syncPending(false);
+  logs = [];
+  salvarLogs();
+  vigia.start = new Date().toISOString();
+  localStorage.setItem('ronda_vigia', JSON.stringify(vigia));
+  renderReport();
+  toast('✅ Turno encerrado');
+  switchTab('scanner');
+}
+
+// LOGS
+function renderLogs() {
+  var el = document.getElementById('log-list');
+  document.getElementById('log-count').textContent = logs.length + ' registro' + (logs.length !== 1 ? 's' : '');
+  if (!logs.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div>Nenhum registro ainda.</div>'; return; }
+  el.innerHTML = logs.map(function(e, i) {
+    return '<div class="log-item">' +
+      '<div class="log-num">' + (logs.length - i) + '</div>' +
+      '<div class="log-info"><div class="log-loc">' + e.location + '</div>' +
+      '<div class="log-meta">' + e.date + ' · ' + e.time + ' · ' + (e.source && e.source.indexOf('manual') === 0 ? '✏️ Manual' : '📷 QR') + (e.synced ? ' · ☁' : '') + '</div></div>' +
+      '<div class="log-time">' + e.time + '</div></div>';
+  }).join('');
+}
+
+function clearLogs() {
+  if (!confirm('Limpar todos os registros?')) return;
+  logs = []; salvarLogs(); renderLogs(); toast('Registros limpos');
+}
+
+// CSV
+function exportCSV() {
+  if (!logs.length) { toast('Nenhum registro'); return; }
+  var h = 'Nº,Vigia,Tipo,Local,Data,Hora,Latitude,Longitude,Método\n';
+  var r = logs.map(function(e, i) {
+    return (logs.length-i) + ',"' + (e.vigia||'') + '","' + (e.tipo||'') + '","' + e.location + '",' + e.date + ',' + e.time + ',' + (e.lat||'') + ',' + (e.lng||'') + ',' + e.source;
+  }).join('\n');
+  var blob = new Blob(['\uFEFF' + h + r], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'ronda_' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-') + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('⬇ CSV exportado');
+}
+
+// GOOGLE SHEETS
+function syncEntry(entry) {
+  if (!temSheets()) return;
+  fetch(SHEETS_URL, { method: 'POST', body: JSON.stringify([entry]) })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        entry.synced = true; salvarLogs();
+        var el = document.getElementById('r-sync-txt');
+        if (el) el.textContent = '✅ Enviado';
+      } else {
+        var el = document.getElementById('r-sync-txt');
+        if (el) el.textContent = '⚠️ Falha';
+      }
+    })
+    .catch(function() {
+      var el = document.getElementById('r-sync-txt');
+      if (el) el.textContent = '⚠️ Sem conexão';
+    });
+}
+
+function syncPending(showFeedback) {
+  if (!temSheets()) { if (showFeedback) toast('Sheets não configurado'); return; }
+  var pending = logs.filter(function(l) { return !l.synced; });
+  if (!pending.length) { if (showFeedback) toast('Tudo já sincronizado ☁'); return; }
+  if (showFeedback) toast('Enviando ' + pending.length + ' registros...');
+  fetch(SHEETS_URL, { method: 'POST', body: JSON.stringify(pending) })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        pending.forEach(function(l) { l.synced = true; }); salvarLogs();
+        if (showFeedback) toast('✅ ' + pending.length + ' registros enviados');
+      } else { if (showFeedback) toast('❌ Erro ao enviar'); }
+    })
+    .catch(function() { if (showFeedback) toast('❌ Falha de conexão'); });
+}
+
+// TOAST
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(function() { el.classList.remove('show'); }, 2800);
+}
+
+// RELÓGIO
+setInterval(function() {
+  var el = document.getElementById('clock');
+  if (el) el.textContent = new Date().toLocaleTimeString('pt-BR');
+}, 1000);
+
+// INICIAR
+carregarLogs();
+var v = carregarVigia();
+if (v) { vigia = v; mostrarApp(); }
+</script>
+</body>
+</html>
